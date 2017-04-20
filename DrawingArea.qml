@@ -1,4 +1,4 @@
-import QtQuick 2.7
+import QtQuick 2.2
 
 import Ros 1.0
 
@@ -12,12 +12,16 @@ Item {
     property string bgImage: "res/map.svg"
     property int lineWidth: 50
 
-    property color fgColor: colorpicker.color
+    property color fgColor: colorpicker.paintbrushColor
 
     property var strokes: []
 
+    property bool drawEnabled: true
+
     Rectangle {
         id: colorpicker
+
+        opacity: drawingarea.drawEnabled ? 1 : 0
         x:10
         anchors.verticalCenter: parent.verticalCenter
 
@@ -29,16 +33,22 @@ Item {
         border.width: 5
         border.color: "black"
 
+        color: "transparent"
 
+        Behavior on opacity {
+            NumberAnimation {
+                duration:300
+            }
+        }
 
-        property alias color: colorGrid.color
+        property alias paintbrushColor: colorGrid.color
 
         Grid {
             x: 5
             y: 5
             id: colorGrid
 
-        property int colorPickerCols: 2
+            property int colorPickerCols: 2
 
         property var colors: ["#fce94f",
                               "#fcaf3e",
@@ -84,9 +94,8 @@ Item {
 
     MultiPointTouchArea {
         id:touchs
+        enabled: drawingarea.drawEnabled
         anchors.fill: parent
-        minimumTouchPoints: 1
-        maximumTouchPoints: 5
         touchPoints: [
             TouchPoint {
                 id: touch1
@@ -117,6 +126,20 @@ Item {
             },
             TouchPoint {
                 id: touch3
+                property var currentStroke: []
+                onYChanged: drawingarea.addPoint(x, y, currentStroke)
+                onPressedChanged: {
+                    if (!pressed) {
+                        drawingarea.finishStroke(currentStroke);
+                        currentStroke = [];
+                    }
+                }
+
+                property alias color: drawingarea.fgColor
+
+            },
+            TouchPoint {
+                id: touch4
                 property var currentStroke: []
                 onYChanged: drawingarea.addPoint(x, y, currentStroke)
                 onPressedChanged: {
@@ -166,7 +189,7 @@ Item {
             target: parent
             topic: "/sandbox/image"
             frame: "sandtray"
-            pixelscale: pixel2meter
+            pixelscale: drawingarea.pixelscale
         }
 
         onPaint: {
@@ -194,9 +217,9 @@ Item {
 
                 if(touchs.touchPoints[i].currentStroke.length !== 0) {
                     currentStrokes.push({color: drawingarea.fgColor.toString(),
-                                points: touchs.touchPoints[i].currentStroke,
-                                width: drawingarea.lineWidth
-                            });
+                                    points: touchs.touchPoints[i].currentStroke,
+                                    width: drawingarea.lineWidth
+                                });
                 }
             }
 
